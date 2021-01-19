@@ -1,6 +1,7 @@
 package org.camunda.bpm.getstarted.chargecard;
 
 import org.camunda.bpm.client.ExternalTaskClient;
+import org.camunda.bpm.getstarted.exception.BpmnException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,20 +25,23 @@ public class ChargeCardWorker {
                     // Put your business logic here
 
                     // Get a process variable
-                    String item = (String) externalTask.getVariable("item");
-                    Long amount = (Long) externalTask.getVariable("amount");
-                    Long saved = (Long) externalTask.getVariable("saved");
+                    try {
+                        String item = (String) externalTask.getVariable("item");
+                        Long amount = (Long) externalTask.getVariable("amount");
+                        Long saved = (Long) externalTask.getVariable("saved");
 
-                    LOGGER.info("Charging credit card with an amount of '" + amount + "'€ for the item '" + item + "'...");
+                        LOGGER.info("Charging credit card with an amount of '" + amount + "'€ for the item '" + item + "'...");
 
-                    Map<String, Object> variables = new HashMap<>();
-                    if (saved >= amount) {
-                        variables.put("enoughMoney", true);
-                    } else {
-                        variables.put("enoughMoney", false);
+                        if (saved < amount) {
+                            throw new BpmnException("NO-M");
+                        }
+
+                        // Complete the task
+
+                        externalTaskService.complete(externalTask);
+                    } catch (BpmnException e) {
+                        externalTaskService.handleBpmnError(externalTask, e.getErrorCode());
                     }
-                    // Complete the task
-                    externalTaskService.complete(externalTask, variables);
                 })
                 .open();
         // subscribe to an external task topic as specified in the process
